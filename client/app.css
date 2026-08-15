@@ -1,0 +1,267 @@
+/* =========================================================================
+   Estimation immobiliere Ile-de-France — feuille de style
+   Le fond est 100 % CSS (aucune ressource externe, fonctionne hors ligne).
+   Pour une photo a la place : voir le bloc VARIANTE PHOTO en bas du fichier.
+   ========================================================================= */
+
+:root {
+    --nuit-1: #0b1a2e;
+    --nuit-2: #12304d;
+    --nuit-3: #1c4b63;
+    --or: #e6b980;
+    --or-clair: #f3d9b1;
+    --verre: rgba(255, 255, 255, .94);
+    --texte: #14202e;
+    --texte-doux: #64748b;
+    --bordure: rgba(15, 32, 51, .12);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    height: 100%;
+    margin: 0;
+    font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--texte);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Fond : degrade en couches + halos lumineux ---------- */
+.fond {
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background:
+        radial-gradient(ellipse 80% 55% at 18% 12%, rgba(230, 185, 128, .28) 0%, transparent 60%),
+        radial-gradient(ellipse 70% 50% at 85% 25%, rgba(94, 176, 190, .30) 0%, transparent 62%),
+        radial-gradient(ellipse 90% 60% at 50% 100%, rgba(28, 75, 99, .55) 0%, transparent 70%),
+        linear-gradient(165deg, var(--nuit-1) 0%, var(--nuit-2) 48%, var(--nuit-3) 100%);
+}
+
+/* Silhouette de ville en SVG integre, posee en bas de l'ecran */
+.fond::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 42vh;
+    opacity: .5;
+    background-repeat: repeat-x;
+    background-position: bottom center;
+    background-size: 1400px auto;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1400 300' preserveAspectRatio='xMidYMax meet'><g fill='%230a1524'><rect x='0' y='210' width='90' height='90'/><rect x='84' y='180' width='70' height='120'/><rect x='150' y='225' width='110' height='75'/><rect x='255' y='165' width='60' height='135'/><rect x='310' y='205' width='95' height='95'/><rect x='400' y='150' width='48' height='150'/><rect x='443' y='195' width='120' height='105'/><rect x='558' y='170' width='66' height='130'/><path d='M700 40 L716 130 L742 300 L658 300 L684 130 Z'/><rect x='688' y='118' width='24' height='10'/><rect x='674' y='188' width='52' height='9'/><rect x='760' y='200' width='104' height='100'/><rect x='858' y='160' width='58' height='140'/><rect x='910' y='215' width='96' height='85'/><rect x='1000' y='175' width='72' height='125'/><rect x='1066' y='230' width='118' height='70'/><rect x='1178' y='185' width='64' height='115'/><rect x='1236' y='218' width='104' height='82'/><rect x='1334' y='190' width='66' height='110'/></g><g fill='%23e6b980' opacity='.55'><rect x='100' y='196' width='7' height='9'/><rect x='116' y='196' width='7' height='9'/><rect x='100' y='216' width='7' height='9'/><rect x='132' y='216' width='7' height='9'/><rect x='268' y='182' width='7' height='9'/><rect x='288' y='202' width='7' height='9'/><rect x='268' y='222' width='7' height='9'/><rect x='412' y='168' width='7' height='9'/><rect x='412' y='196' width='7' height='9'/><rect x='428' y='224' width='7' height='9'/><rect x='572' y='188' width='7' height='9'/><rect x='596' y='212' width='7' height='9'/><rect x='572' y='236' width='7' height='9'/><rect x='872' y='178' width='7' height='9'/><rect x='892' y='202' width='7' height='9'/><rect x='872' y='232' width='7' height='9'/><rect x='1014' y='192' width='7' height='9'/><rect x='1040' y='216' width='7' height='9'/><rect x='1192' y='202' width='7' height='9'/><rect x='1216' y='232' width='7' height='9'/><rect x='1348' y='206' width='7' height='9'/><rect x='1372' y='234' width='7' height='9'/></g></svg>");
+}
+
+/* Voile sombre pour garder la carte lisible */
+.fond::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(5, 12, 22, .18) 0%, rgba(5, 12, 22, .42) 100%);
+}
+
+/* ---------- Carte ---------- */
+.carte {
+    max-width: 440px;
+    margin: 48px auto;
+    padding: 32px 34px 34px;
+    background: var(--verre);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, .5);
+    border-radius: 18px;
+    box-shadow: 0 24px 60px rgba(3, 10, 20, .45), 0 2px 6px rgba(3, 10, 20, .22);
+    animation: apparition .45s ease-out;
+}
+
+@keyframes apparition {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: none; }
+}
+
+h1 {
+    font-size: 23px;
+    font-weight: 700;
+    letter-spacing: -.4px;
+    margin: 0 0 4px;
+}
+
+h1::after {
+    content: "";
+    display: block;
+    width: 46px;
+    height: 3px;
+    margin-top: 10px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--or), var(--or-clair));
+}
+
+.sous-titre {
+    margin: 12px 0 26px;
+    font-size: 13px;
+    color: var(--texte-doux);
+}
+
+label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+    color: var(--texte-doux);
+    margin: 20px 0 7px;
+}
+
+.champ {
+    width: 100%;
+    height: 42px;
+    padding: 0 12px;
+    border: 1px solid var(--bordure);
+    border-radius: 9px;
+    background: #f6f8fa;
+    font-size: 15px;
+    color: var(--texte);
+    outline: 0;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.champ:focus {
+    border-color: var(--nuit-3);
+    box-shadow: 0 0 0 3px rgba(28, 75, 99, .14);
+    background: #fff;
+}
+
+select.champ { cursor: pointer; }
+
+/* ---------- Groupes de boutons radio ---------- */
+.boutons-radio { display: flex; }
+
+.boutons-radio input {
+    position: absolute !important;
+    clip: rect(0, 0, 0, 0);
+    height: 1px; width: 1px;
+    border: 0; overflow: hidden;
+}
+
+.boutons-radio label {
+    margin: 0 -1px 0 0;
+    padding: 10px 0;
+    flex: 1;
+    text-align: center;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--texte-doux);
+    background: #eef1f5;
+    border: 1px solid var(--bordure);
+    cursor: pointer;
+    transition: all .13s ease-in-out;
+}
+
+.boutons-radio label:first-of-type { border-radius: 9px 0 0 9px; }
+.boutons-radio label:last-of-type  { border-radius: 0 9px 9px 0; }
+.boutons-radio label:hover         { background: #e3e8ef; }
+
+.boutons-radio input:checked + label {
+    background: linear-gradient(160deg, var(--nuit-2), var(--nuit-3));
+    border-color: var(--nuit-2);
+    color: #fff;
+    font-weight: 700;
+    position: relative;
+    z-index: 1;
+}
+
+.boutons-radio input:disabled + label {
+    opacity: .32;
+    cursor: not-allowed;
+    background: #eef1f5;
+}
+
+/* ---------- Bouton ---------- */
+.bouton {
+    width: 100%;
+    height: 48px;
+    margin-top: 28px;
+    border: 0;
+    border-radius: 10px;
+    background: linear-gradient(135deg, var(--nuit-2) 0%, var(--nuit-3) 100%);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(18, 48, 77, .32);
+    transition: transform .12s, box-shadow .12s, filter .12s;
+}
+
+.bouton:hover  { filter: brightness(1.12); box-shadow: 0 9px 24px rgba(18, 48, 77, .4); }
+.bouton:active { transform: translateY(1px); }
+.bouton:disabled {
+    background: #94a3b8;
+    box-shadow: none;
+    cursor: wait;
+}
+
+/* ---------- Resultat ---------- */
+.resultat {
+    margin-top: 20px;
+    padding: 20px 16px;
+    border-radius: 12px;
+    text-align: center;
+    display: none;
+    animation: apparition .3s ease-out;
+}
+
+.resultat.ok {
+    display: block;
+    background: linear-gradient(160deg, #fdf6ec 0%, #f7ecdc 100%);
+    border: 1px solid rgba(230, 185, 128, .6);
+}
+
+.resultat.erreur {
+    display: block;
+    background: #fdecea;
+    border: 1px solid #f3b0a8;
+    color: #8b1f16;
+    font-size: 14px;
+    padding: 14px 16px;
+}
+
+.prix {
+    display: block;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -.8px;
+    color: var(--nuit-2);
+    line-height: 1.15;
+}
+
+.detail {
+    display: block;
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--texte-doux);
+}
+
+/* ---------- Mobile ---------- */
+@media (max-width: 520px) {
+    .carte { margin: 16px 12px; padding: 24px 20px 28px; }
+    .prix { font-size: 27px; }
+}
+
+/* =========================================================================
+   VARIANTE PHOTO
+   Pour un fond photographique : ajoute la classe "fond--photo" a la div .fond
+   dans index.html, puis depose ton image dans static/fond.jpg.
+   ========================================================================= */
+.fond--photo::after { display: none; }
+
+.fond--photo {
+    background: #0b1a2e url("fond.jpg") center / cover no-repeat;
+}
+
+.fond--photo::before {
+    backdrop-filter: blur(6px) saturate(.9);
+    -webkit-backdrop-filter: blur(6px) saturate(.9);
+    background: linear-gradient(180deg, rgba(5, 12, 22, .45) 0%, rgba(5, 12, 22, .65) 100%);
+}

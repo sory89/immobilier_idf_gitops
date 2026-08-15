@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Estimation immobilière — Île-de-France</title>
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="theme-color" content="#12304d">
+    <link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="fond"></div>
+
+<main class="carte">
+    <h1>Estimation immobilière</h1>
+    <p class="sous-titre">Île-de-France · 27 communes</p>
+
+    <label for="uiSurface">Surface habitable (m²)</label>
+    <input class="champ" type="number" id="uiSurface" value="65" min="9" max="400" step="1">
+
+    <label>Nombre de pièces</label>
+    <div class="boutons-radio" id="uiPieces">
+        <input type="radio" id="p1" name="pieces" value="1"><label for="p1">T1</label>
+        <input type="radio" id="p2" name="pieces" value="2"><label for="p2">T2</label>
+        <input type="radio" id="p3" name="pieces" value="3" checked><label for="p3">T3</label>
+        <input type="radio" id="p4" name="pieces" value="4"><label for="p4">T4</label>
+        <input type="radio" id="p5" name="pieces" value="5"><label for="p5">T5</label>
+        <input type="radio" id="p6" name="pieces" value="6"><label for="p6">T6</label>
+    </div>
+
+    <label>Salles de bain</label>
+    <div class="boutons-radio" id="uiSdb">
+        <input type="radio" id="s1" name="sdb" value="1" checked><label for="s1">1</label>
+        <input type="radio" id="s2" name="sdb" value="2"><label for="s2">2</label>
+        <input type="radio" id="s3" name="sdb" value="3"><label for="s3">3</label>
+        <input type="radio" id="s4" name="sdb" value="4"><label for="s4">4</label>
+    </div>
+
+    <label>Balcons</label>
+    <div class="boutons-radio" id="uiBalcons">
+        <input type="radio" id="b0" name="balcons" value="0" checked><label for="b0">0</label>
+        <input type="radio" id="b1" name="balcons" value="1"><label for="b1">1</label>
+        <input type="radio" id="b2" name="balcons" value="2"><label for="b2">2</label>
+        <input type="radio" id="b3" name="balcons" value="3"><label for="b3">3</label>
+    </div>
+
+    <label for="uiVille">Commune</label>
+    <select class="champ" id="uiVille"></select>
+
+    <label for="uiQuartier">Quartier</label>
+    <select class="champ" id="uiQuartier"></select>
+
+    <label for="uiDpe">DPE</label>
+    <select class="champ" id="uiDpe">
+        <option>A</option><option>B</option><option>C</option>
+        <option selected>D</option><option>E</option><option>F</option><option>G</option>
+    </select>
+
+    <button class="bouton" id="uiEstimer" type="button">Estimer le prix</button>
+
+    <div class="resultat" id="uiResultat"></div>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
