@@ -17,7 +17,6 @@ pipeline {
         ARGOCD_SERVER = "192.168.49.2:31679"   // minikube ip + nodePort HTTPS d'argocd-server
         ARGOCD_APP = "immobilier-idf"
 
-        DOCKER_BUILDKIT = "1"
         TRIVY_CACHE_DIR = "/var/lib/jenkins/.cache/trivy"
         TRIVY_NO_PROGRESS = "true"
         TRIVY_DISABLE_VEX_NOTICE = "true"
@@ -122,8 +121,8 @@ pipeline {
 
         stage('Apply Kubernetes & Sync App with ArgoCD') {
             steps {
-                // Le pas kubeconfig doit rester dans un bloc script :
-                // hors de ce contexte, Jenkins reclame tous ses parametres
+                // Le pas kubeconfig doit rester dans un bloc script : hors de ce
+                // contexte, Jenkins reclame tous ses parametres
                 // (erreur "Missing required parameter: caCertificate").
                 script {
                     kubeconfig(credentialsId: 'kubeconfig', serverUrl: 'https://192.168.49.2:8443') {
