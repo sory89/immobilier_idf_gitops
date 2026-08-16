@@ -48,9 +48,8 @@ pipeline {
         }
 
         stage('Scan Trivy') {
-            // Le scan precede le push : une image vulnerable ne doit pas atteindre
-            // le registre. Une seule analyse par image, le JSON servant ensuite de
-            // source a l'affichage et au controle bloquant (six scans auparavant).
+            // Le scan precede le push : une image vulnerable ne doit pas
+            // atteindre le registre.
             steps {
                 sh '''
                 if [ ! -x /usr/local/bin/trivy ]; then
@@ -58,18 +57,24 @@ pipeline {
                 fi
 
                 for c in api client; do
-                    trivy image --scanners vuln --format json \
-                          -o "trivy-${c}.json" ${DOCKER_HUB_REPO}:${c}-${BUILD_NUMBER}
+                    image="${DOCKER_HUB_REPO}:${c}-${BUILD_NUMBER}"
+
+                    # Rapport complet : archive comme artefact, puis affiche depuis
+                    # le JSON (convert) plutot qu'en relançant une analyse.
+                    trivy image --scanners vuln --format json -o "trivy-${c}.json" "$image"
                     echo "--- Rapport ${c} (HIGH + CRITICAL) ---"
-                    trivy convert --format table --severity HIGH,CRITICAL "trivy-${c}.json"
+                    trivy convert --scanners vuln --format table --severity HIGH,CRITICAL "trivy-${c}.json"
+
+                    # Controle bloquant : uniquement les CRITICAL disposant d'un
+                    # correctif. Sans --ignore-unfixed, une image Python remonte en
+                    # permanence des CVE systeme non corrigeables et le pipeline
+                    # serait rouge en continu. Ce drapeau n'existe pas sur "convert",
+                    # d'ou ce second passage, rapide car la base est en cache.
+                    echo "--- Controle bloquant ${c} ---"
+                    trivy image --scanners vuln --severity CRITICAL --ignore-unfixed \
+                          --exit-code 1 --skip-db-update "$image"
                 done
 
-                # Le build echoue uniquement sur les CRITICAL disposant d'un correctif :
-                # sans --ignore-unfixed, une image Python remonte en permanence des CVE
-                # systeme non corrigeables et le pipeline serait rouge en continu.
-                echo "--- Controle bloquant (CRITICAL corrigeables) ---"
-                trivy convert --severity CRITICAL --ignore-unfixed --exit-code 1 trivy-api.json
-                trivy convert --severity CRITICAL --ignore-unfixed --exit-code 1 trivy-client.json
                 echo "Aucune vulnerabilite critique corrigeable"
                 '''
             }
