@@ -1,11 +1,26 @@
 pipeline {
     agent any
 
+    options {
+        // Le plugin declaratif fait deja un checkout : sans cette option,
+        // le depot est clone deux fois a chaque build.
+        skipDefaultCheckout(true)
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '15', artifactNumToKeepStr: '15'))
+        timeout(time: 40, unit: 'MINUTES')
+    }
+
     environment {
         DOCKER_HUB_REPO = "sorydiallo89/gitops-project"
         DOCKER_HUB_CREDENTIALS_ID = "gitops-dockerhub-token"
         ARGOCD_SERVER = "192.168.49.2:31679"   // minikube ip + nodePort HTTPS d'argocd-server
         ARGOCD_APP = "immobilier-idf"
+
+        DOCKER_BUILDKIT = "1"
+        TRIVY_CACHE_DIR = "/var/lib/jenkins/.cache/trivy"
+        TRIVY_NO_PROGRESS = "true"
+        TRIVY_DISABLE_VEX_NOTICE = "true"
     }
 
     stages {
@@ -18,49 +33,44 @@ pipeline {
         }
 
         stage('Build Docker Images') {
-            steps {
-                script {
-                    echo 'Building Docker images (API + client)...'
-                    // Contexte de build = racine du depot : les Dockerfile copient server/ ET client/
-                    apiImage = docker.build("${DOCKER_HUB_REPO}:api-${BUILD_NUMBER}", "-f server/Dockerfile .")
-                    clientImage = docker.build("${DOCKER_HUB_REPO}:client-${BUILD_NUMBER}", "-f client/Dockerfile .")
+            // Les deux images sont independantes : construction simultanee.
+            parallel {
+                stage('API') {
+                    steps {
+                        sh 'docker build -f server/Dockerfile -t ${DOCKER_HUB_REPO}:api-${BUILD_NUMBER} .'
+                    }
+                }
+                stage('Client') {
+                    steps {
+                        sh 'docker build -f client/Dockerfile -t ${DOCKER_HUB_REPO}:client-${BUILD_NUMBER} .'
+                    }
                 }
             }
         }
 
         stage('Scan Trivy') {
+            // Le scan precede le push : une image vulnerable ne doit pas atteindre
+            // le registre. Une seule analyse par image, le JSON servant ensuite de
+            // source a l'affichage et au controle bloquant (six scans auparavant).
             steps {
-                // Le scan precede le push : une image vulnerable ne doit pas
-                // atteindre le registre.
                 sh '''
-                echo 'Scan de securite des images...'
                 if [ ! -x /usr/local/bin/trivy ]; then
                     curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
                 fi
-                trivy --version
 
-                echo "--- Rapport API ---"
-                trivy image --severity HIGH,CRITICAL --no-progress --scanners vuln \
-                      ${DOCKER_HUB_REPO}:api-${BUILD_NUMBER}
-
-                echo "--- Rapport client ---"
-                trivy image --severity HIGH,CRITICAL --no-progress --scanners vuln \
-                      ${DOCKER_HUB_REPO}:client-${BUILD_NUMBER}
-
-                echo "--- Rapports HTML archives ---"
-                trivy image --format json --no-progress --scanners vuln \
-                      -o trivy-api.json    ${DOCKER_HUB_REPO}:api-${BUILD_NUMBER}
-                trivy image --format json --no-progress --scanners vuln \
-                      -o trivy-client.json ${DOCKER_HUB_REPO}:client-${BUILD_NUMBER}
+                for c in api client; do
+                    trivy image --scanners vuln --format json \
+                          -o "trivy-${c}.json" ${DOCKER_HUB_REPO}:${c}-${BUILD_NUMBER}
+                    echo "--- Rapport ${c} (HIGH + CRITICAL) ---"
+                    trivy convert --format table --severity HIGH,CRITICAL "trivy-${c}.json"
+                done
 
                 # Le build echoue uniquement sur les CRITICAL disposant d'un correctif :
                 # sans --ignore-unfixed, une image Python remonte en permanence des CVE
                 # systeme non corrigeables et le pipeline serait rouge en continu.
                 echo "--- Controle bloquant (CRITICAL corrigeables) ---"
-                trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 \
-                      --no-progress --scanners vuln ${DOCKER_HUB_REPO}:api-${BUILD_NUMBER}
-                trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 \
-                      --no-progress --scanners vuln ${DOCKER_HUB_REPO}:client-${BUILD_NUMBER}
+                trivy convert --severity CRITICAL --ignore-unfixed --exit-code 1 trivy-api.json
+                trivy convert --severity CRITICAL --ignore-unfixed --exit-code 1 trivy-client.json
                 echo "Aucune vulnerabilite critique corrigeable"
                 '''
             }
@@ -72,15 +82,24 @@ pipeline {
         }
 
         stage('Push Images to DockerHub') {
+            // docker login direct plutot que docker.withRegistry : pas de retag
+            // vers registry.hub.docker.com, logs allegés, et disparition de
+            // l'avertissement Groovy "Did you forget the def keyword".
             steps {
-                script {
-                    echo 'Pushing Docker images to DockerHub...'
-                    docker.withRegistry('https://registry.hub.docker.com', "${DOCKER_HUB_CREDENTIALS_ID}") {
-                        apiImage.push("api-${BUILD_NUMBER}")
-                        apiImage.push('api-latest')
-                        clientImage.push("client-${BUILD_NUMBER}")
-                        clientImage.push('client-latest')
-                    }
+                withCredentials([usernamePassword(credentialsId: "${DOCKER_HUB_CREDENTIALS_ID}",
+                                                  usernameVariable: 'DH_USER',
+                                                  passwordVariable: 'DH_PASS')]) {
+                    sh '''
+                    echo "${DH_PASS}" | docker login -u "${DH_USER}" --password-stdin
+
+                    docker tag ${DOCKER_HUB_REPO}:api-${BUILD_NUMBER}    ${DOCKER_HUB_REPO}:api-latest
+                    docker tag ${DOCKER_HUB_REPO}:client-${BUILD_NUMBER} ${DOCKER_HUB_REPO}:client-latest
+
+                    docker push ${DOCKER_HUB_REPO}:api-${BUILD_NUMBER}
+                    docker push ${DOCKER_HUB_REPO}:client-${BUILD_NUMBER}
+                    docker push ${DOCKER_HUB_REPO}:api-latest
+                    docker push ${DOCKER_HUB_REPO}:client-latest
+                    '''
                 }
             }
         }
@@ -88,7 +107,6 @@ pipeline {
         stage('Install Kubectl & ArgoCD CLI Setup') {
             steps {
                 sh '''
-                echo 'installing Kubectl & ArgoCD cli...'
                 if [ ! -x /usr/local/bin/kubectl ]; then
                     curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
                     chmod +x kubectl
@@ -104,14 +122,16 @@ pipeline {
 
         stage('Apply Kubernetes & Sync App with ArgoCD') {
             steps {
-                script {
-                    kubeconfig(credentialsId: 'kubeconfig', serverUrl: 'https://192.168.49.2:8443') {
+                kubeconfig(credentialsId: 'kubeconfig', serverUrl: 'https://192.168.49.2:8443') {
+                    // Le cluster peut sortir d'un redemarrage : on attend que les
+                    // composants ArgoCD repondent, avec une seconde tentative.
+                    retry(2) {
                         sh '''
-                        # Le cluster peut sortir d'un redemarrage : on attend que les
-                        # composants ArgoCD soient prets avant de tenter la synchronisation.
                         kubectl wait --for=condition=Ready pods --all -n argocd --timeout=300s
 
-                        argocd login ${ARGOCD_SERVER} --username admin --password $(kubectl get secret -n argocd argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d) --insecure --grpc-web
+                        argocd login ${ARGOCD_SERVER} --username admin \
+                               --password $(kubectl get secret -n argocd argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d) \
+                               --insecure --grpc-web
                         argocd app sync ${ARGOCD_APP} --grpc-web
                         argocd app wait ${ARGOCD_APP} --health --timeout 300 --grpc-web
                         '''
@@ -129,7 +149,10 @@ pipeline {
             echo "Echec du build #${BUILD_NUMBER} - rien n'a ete deploye"
         }
         always {
-            sh 'docker image prune -f --filter "until=24h" || true'
+            sh '''
+            docker logout || true
+            docker image prune -f --filter "until=24h" || true
+            '''
         }
     }
 }
