@@ -122,19 +122,24 @@ pipeline {
 
         stage('Apply Kubernetes & Sync App with ArgoCD') {
             steps {
-                kubeconfig(credentialsId: 'kubeconfig', serverUrl: 'https://192.168.49.2:8443') {
-                    // Le cluster peut sortir d'un redemarrage : on attend que les
-                    // composants ArgoCD repondent, avec une seconde tentative.
-                    retry(2) {
-                        sh '''
-                        kubectl wait --for=condition=Ready pods --all -n argocd --timeout=300s
+                // Le pas kubeconfig doit rester dans un bloc script :
+                // hors de ce contexte, Jenkins reclame tous ses parametres
+                // (erreur "Missing required parameter: caCertificate").
+                script {
+                    kubeconfig(credentialsId: 'kubeconfig', serverUrl: 'https://192.168.49.2:8443') {
+                        // Le cluster peut sortir d'un redemarrage : on attend que
+                        // les composants ArgoCD repondent, avec une 2e tentative.
+                        retry(2) {
+                            sh '''
+                            kubectl wait --for=condition=Ready pods --all -n argocd --timeout=300s
 
-                        argocd login ${ARGOCD_SERVER} --username admin \
-                               --password $(kubectl get secret -n argocd argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d) \
-                               --insecure --grpc-web
-                        argocd app sync ${ARGOCD_APP} --grpc-web
-                        argocd app wait ${ARGOCD_APP} --health --timeout 300 --grpc-web
-                        '''
+                            argocd login ${ARGOCD_SERVER} --username admin \
+                                   --password $(kubectl get secret -n argocd argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d) \
+                                   --insecure --grpc-web
+                            argocd app sync ${ARGOCD_APP} --grpc-web
+                            argocd app wait ${ARGOCD_APP} --health --timeout 300 --grpc-web
+                            '''
+                        }
                     }
                 }
             }
