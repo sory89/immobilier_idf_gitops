@@ -52,8 +52,14 @@ spec:
               port: http
             periodSeconds: 30
             failureThreshold: 3
+          # runAsUser est obligatoire avec runAsNonRoot : sans UID explicite,
+          # kubelet ne peut pas verifier que l'image ne tourne pas en root et
+          # refuse de creer le conteneur (CreateContainerConfigError).
+          # 10001 correspond au useradd -u 10001 appuser du Dockerfile.
           securityContext:
             runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
             allowPrivilegeEscalation: false
 ---
 apiVersion: v1
