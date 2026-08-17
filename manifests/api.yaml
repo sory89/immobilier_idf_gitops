@@ -6,7 +6,9 @@ metadata:
   labels:
     app: immo-api
 spec:
-  replicas: 2
+  # Un seul replica : sur un cluster mononoeud, deux pods n'apportent aucune
+  # disponibilite reelle et doublent la consommation memoire.
+  replicas: 1
   selector:
     matchLabels:
       app: immo-api
@@ -24,16 +26,20 @@ spec:
               containerPort: 8000
           resources:
             requests:
-              memory: "256Mi"
+              memory: "512Mi"
               cpu: "100m"
+            # Limite relevee a 1,5 Gi : les pods etaient tues (exit code 137)
+            # a 768 Mi, pandas et scipy consommant plus que prevu au chargement.
             limits:
-              memory: "768Mi"
+              memory: "1536Mi"
               cpu: "500m"
+          # Le modele est charge au demarrage (lifespan) : laisser le temps
+          # a scikit-learn, pandas et scipy de s'importer avant de sonder.
           startupProbe:
             httpGet:
               path: /health
               port: http
-            failureThreshold: 20
+            failureThreshold: 30
             periodSeconds: 3
           readinessProbe:
             httpGet:
@@ -44,12 +50,18 @@ spec:
             httpGet:
               path: /health
               port: http
-            periodSeconds: 20
+            periodSeconds: 30
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: immo-api
+  labels:
+    app: immo-api
 spec:
   type: ClusterIP
   selector:
